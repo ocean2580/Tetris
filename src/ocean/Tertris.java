@@ -11,8 +11,8 @@ public class Tertris extends JFrame implements KeyListener {
     private static final int GAME_X = 26;
     private static final int GAME_Y = 12;
 
-    JTextArea[][] text; // 文本域数组
-    int[][] data; // 数据
+    JTextArea[][] text; // 文本域
+    int[][] data; // 占位
 
     // 显示游戏状态、分数的标签
     JLabel label1;
@@ -21,14 +21,14 @@ public class Tertris extends JFrame implements KeyListener {
     boolean isRunning; // 游戏是否结束
 
     int[] allRect; // 存储所有方块
-    int rect; // 当前方块
+    int rectCur; // 当前方块 (四位十六进制数)
+    int xCur, yCur; // 当前方块坐标
 
     int time = 1000; // 休眠时间
-    int x, y; // 当前方块坐标
     int score = 0; // 分数
 
     boolean gamePause = false; // 暂停
-    int pauseTimes = 0;
+    int pauseFlag = 0;
 
 
     public void initWindow(){ // 初始化窗口
@@ -100,7 +100,7 @@ public class Tertris extends JFrame implements KeyListener {
         label1 = new JLabel("游戏状态：正在游戏中...");
         label = new JLabel("游戏得分为: 0 ");
 
-        isRunning = true; //
+        isRunning = true;
 
         //初始化存放方块的数组
         allRect = new int[]{
@@ -137,14 +137,14 @@ public class Tertris extends JFrame implements KeyListener {
 
     public void ranRect(){ // 随机生成下落方块
         Random random = new Random();
-        rect = allRect[random.nextInt(19)]; // [0,19)
+        rectCur = allRect[random.nextInt(19)]; // [0,19)
     }
 
     public void gameRun() {
         ranRect();
 
-        x = 0; // 方块下落位置
-        y = 5;
+        xCur = 0; // 方块下落位置
+        yCur = 5;
 
         for (int i = 0; i < GAME_X; i++) {
             try {
@@ -154,10 +154,10 @@ public class Tertris extends JFrame implements KeyListener {
                     i--;
                 }
                 else {
-                    if (!canFall(x, y)) {
-                        changData(x, y); // 将data置为1,表示有方块占用
+                    if (!canFall(xCur, yCur)) {
+                        changData(xCur, yCur); // 将data置为1,表示有方块占用
 
-                        for (int j = x; j < x + 4; j++) { // 循环遍历4层,看是否有行可以消除
+                        for (int j = xCur; j < xCur + 4; j++) { // 循环遍历4层,看是否有行可以消除
                             int sum = 0;
 
                             for (int k = 1; k <= (GAME_Y - 2); k++) {
@@ -180,8 +180,8 @@ public class Tertris extends JFrame implements KeyListener {
                         break;
 
                     } else {
-                        x++; // 层数+1
-                        fall(x, y); // 方块下落一行
+                        xCur++; // 层数+1
+                        fall(xCur, yCur); // 方块下落一行
                     }
                 }
             } catch (InterruptedException e) {
@@ -194,14 +194,13 @@ public class Tertris extends JFrame implements KeyListener {
         int temp = 0x8000; //
         for (int i = 0; i < 4; i++) { // 4*4
             for (int j = 0; j < 4; j++) {
-                if ((temp & rect) != 0) {
+                if ((temp & rectCur) != 0) {
                     // 该位置下一行是否有方块
                     if (data[m+1][n] == 1) return false;
                 }
                 n++;
                 temp >>= 1;
             }
-
             m++;
             n -= 4;
         }
@@ -209,12 +208,12 @@ public class Tertris extends JFrame implements KeyListener {
         return true; // fall
     }
 
-    public void changData(int m,int n) {
+    public void changData(int m,int n) {    // 占位数
         int temp = 0x8000; //
         for (int i = 0;i < 4;i++) { // 4*4
             for (int j = 0;j < 4;j++) {
-                if ((temp & rect) != 0) {
-                    data[m][n] = 1; //
+                if ((temp & rectCur) != 0) {
+                    data[m][n] = 1; //  占位
                 }
                 n++;
                 temp >>= 1;
@@ -263,7 +262,7 @@ public class Tertris extends JFrame implements KeyListener {
 
         for (old = 0;old < allRect.length;old++) {
             //判断是否是当前方块
-            if (rect == allRect[old]) {
+            if (rectCur == allRect[old]) {
                 break;
             }
         }
@@ -298,11 +297,11 @@ public class Tertris extends JFrame implements KeyListener {
         draw(m, n);
     }
 
-    public void clear(int m, int n) { // 清色
+    public void clear(int m, int n) { // (清色)模拟下落过程
         int temp = 0x8000; // temp
         for (int i = 0;i < 4;i++) {
             for (int j = 0;j < 4;j++) {
-                if ((temp & rect) != 0) {
+                if ((temp & rectCur) != 0) {
                     text[m][n].setBackground(Color.WHITE);
                 }
                 n++;
@@ -320,7 +319,7 @@ public class Tertris extends JFrame implements KeyListener {
         int temp = 0x8000;
         for (int i = 0;i < 4;i++) {
             for (int j = 0;j < 4;j++) {
-                if ((temp & rect) != 0) { // 上色
+                if ((temp & rectCur) != 0) { // 上色
                     color(old, m, n);
                 }
                 n++;
@@ -339,16 +338,16 @@ public class Tertris extends JFrame implements KeyListener {
                 return;
             }
 
-            pauseTimes++;
+            pauseFlag++;
 
-            if (pauseTimes == 1) {
+            if (pauseFlag == 1) {
                 gamePause = true;
                 label1.setText("游戏状态：暂停中！");
             }
 
-            if (pauseTimes == 2) {
+            if (pauseFlag == 2) {
                 gamePause = false;
-                pauseTimes = 0; // 归零
+                pauseFlag = 0; // 归零
                 label1.setText("游戏状态: 正在进行中！");
             }
         }
@@ -374,45 +373,45 @@ public class Tertris extends JFrame implements KeyListener {
             }
 
             //清除当前方块
-            clear(x,y);
+            clear(xCur, yCur);
 
             if (old == 0 || old == 1) { // 长条
                 next = allRect[old == 0 ? 1 : 0];
 
-                if (canTurn(next,x,y)) {
-                    rect = next;
+                if (canTurn(next, xCur, yCur)) {
+                    rectCur = next;
                 }
             }
 
             if (old >= 3 && old <= 6) {
                 next = allRect[old + 1 > 6 ? 3 : old + 1];
 
-                if (canTurn(next,x,y)) {
-                    rect = next;
+                if (canTurn(next, xCur, yCur)) {
+                    rectCur = next;
                 }
             }
 
             if (old >= 7 && old <= 10) {
                 next = allRect[old + 1 > 10 ? 7 : old + 1];
 
-                if (canTurn(next,x,y)) {
-                    rect = next;
+                if (canTurn(next, xCur, yCur)) {
+                    rectCur = next;
                 }
             }
 
             if (old >= 11 && old <= 14) {
                 next = allRect[old + 1 > 14 ? 11 : old + 1];
 
-                if (canTurn(next,x,y)) {
-                    rect = next;
+                if (canTurn(next, xCur, yCur)) {
+                    rectCur = next;
                 }
             }
 
             if (old == 15 || old == 16) {
                 next = allRect[old == 15 ? 16 : 15];
 
-                if (canTurn(next,x,y)) {
-                    rect = next;
+                if (canTurn(next, xCur, yCur)) {
+                    rectCur = next;
                 }
             }
 
@@ -420,14 +419,14 @@ public class Tertris extends JFrame implements KeyListener {
             if (old == 17 || old == 18) {
                 next = allRect[old == 17 ? 18 : 17];
 
-                if (canTurn(next,x,y)) {
-                    rect = next;
+                if (canTurn(next, xCur, yCur)) {
+                    rectCur = next;
                 }
             }
 
 
             //重新绘制变形后方块
-            draw(x,y);
+            draw(xCur, yCur);
         }
 
 
@@ -464,11 +463,11 @@ public class Tertris extends JFrame implements KeyListener {
                 if (!isRunning) return;
                 if (gamePause) return;
 
-                if (y <= 1) return;
+                if (yCur <= 1) return;
                 // 碰左壁
-                for (int i = x; i < x + 4; i++) {
-                    for (int j = y; j < y + 4; j++) {
-                        if ((temp & rect) != 0) {
+                for (int i = xCur; i < xCur + 4; i++) {
+                    for (int j = yCur; j < yCur + 4; j++) {
+                        if ((temp & rectCur) != 0) {
                             if (data[i][j - 1] == 1) {
                                 return;
                             }
@@ -476,9 +475,9 @@ public class Tertris extends JFrame implements KeyListener {
                         temp >>= 1;
                     }
                 }
-                clear(x, y); // 清除当前方块
-                y--;
-                draw(x, y);
+                clear(xCur, yCur); // 清除当前方块
+                yCur--;
+                draw(xCur, yCur);
                 break;
             }
 
@@ -487,13 +486,13 @@ public class Tertris extends JFrame implements KeyListener {
                 if (gamePause) return;
 
                 // 最右边坐标值
-                int m = x;
-                int n = y;
+                int m = xCur;
+                int n = yCur;
                 int num = 1;
 
                 for (int i = 0; i < 4; i++) {
                     for (int j = 0; j < 4; j++) {
-                        if ((temp & rect) != 0) {
+                        if ((temp & rectCur) != 0) {
                             if (n > num) {
                                 num = n;
                             }
@@ -512,9 +511,9 @@ public class Tertris extends JFrame implements KeyListener {
 
                 //判断右移途中是否有方块
                 temp = 0x8000;
-                for (int i = x; i < x + 4; i++) {
-                    for (int j = x; j < y + 4; j++) {
-                        if ((temp & rect) != 0) {
+                for (int i = xCur; i < xCur + 4; i++) {
+                    for (int j = xCur; j < yCur + 4; j++) {
+                        if ((temp & rectCur) != 0) {
                             if (data[i][j + 1] == 1) {
                                 return;
                             }
@@ -524,9 +523,9 @@ public class Tertris extends JFrame implements KeyListener {
                 }
 
                 //清除当前方块
-                clear(x, y);
-                y++;
-                draw(x, y);
+                clear(xCur, yCur);
+                yCur++;
+                draw(xCur, yCur);
                 break;
             }
 
@@ -534,14 +533,14 @@ public class Tertris extends JFrame implements KeyListener {
                 if (!isRunning) return;
                 if (gamePause) return;
 
-                if (!canFall(x, y)) {
+                if (!canFall(xCur, yCur)) {
                     return;
                 }
-                clear(x, y);
+                clear(xCur, yCur);
 
                 //改变方块的坐标
-                x++;
-                draw(x, y);
+                xCur++;
+                draw(xCur, yCur);
                 break;
             }
         }
